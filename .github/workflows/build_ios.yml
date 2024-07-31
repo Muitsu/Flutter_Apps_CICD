@@ -1,0 +1,82 @@
+name: Build Flutter App (iOS - .IPA)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  tag-version:
+    name: 📌 Tag Version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.increment_tag.outputs.TAG }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Increment Version Tag
+        id: increment_tag
+        run: |
+          git fetch --tags
+          current_tag=$(git tag --list "v*" | sort -V | tail -n 1)
+
+          if [ -z "$current_tag" ]; then
+            new_tag="v1.0.0"
+          else
+            version=${current_tag#v}
+            IFS='.' read -r -a version_parts <<< "$version"
+            patch=$((version_parts[2] + 1))
+            new_tag="v${version_parts[0]}.${version_parts[1]}.$patch"
+          fi
+
+          echo "New tag: $new_tag"
+          echo "::set-output name=TAG::$new_tag"
+
+      - name: Create Git Tag
+        run: |
+          git tag ${{ steps.increment_tag.outputs.TAG }}
+          git push origin ${{ steps.increment_tag.outputs.TAG }}
+
+  build-ios:
+    name: 🍎 iOS Build
+    runs-on: macos-latest
+    needs: tag-version
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Update CocoaPods
+        run: pod repo update
+        working-directory: ios
+
+      - name: Build iOS Release
+        run: flutter build ios --release --no-codesign
+
+      - name: Prepare IPA
+        run: |
+          mkdir Payload
+          mv Runner.app Payload
+          zip -qq -r -9 FlutterIpaExport.ipa Payload
+        working-directory: build/ios/iphoneos
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/ios/iphoneos/FlutterIpaExport.ipa
+
+      - name: Upload IPA to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: ${{ needs.tag-version.outputs.tag }}
+          overwrite: true
+          body: "Release ${{ needs.tag-version.outputs.tag }}"

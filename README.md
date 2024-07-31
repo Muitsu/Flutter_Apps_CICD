@@ -1,4 +1,4 @@
-# ios_ipa_build
+# Flutter apps build
 
 Testing on How to make iOS CI/CD using flutter
 

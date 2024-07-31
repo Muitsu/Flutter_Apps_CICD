@@ -61,43 +61,35 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release
 
-      - name: Rename Release APK
-        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/app-release-renamed.apk
-
-      # - name: Build Debug APK
-      #   run: flutter build apk --debug
-
-      # - name: Rename Debug APK
-      #   run: mv build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/app-debug-renamed.apk
+      - name: Upload APK to Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          
+      - name: Upload APK to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/app/outputs/flutter-apk/app-release.apk
+          tag: ${{ needs.tag-version.outputs.tag }}
+          overwrite: true
+          body: "Release ${{ needs.tag-version.outputs.tag }}"
 
       - name: Build AppBundle
         run: flutter build appbundle --release
 
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release-renamed.apk
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: debug-apk
-          path: build/app/outputs/flutter-apk/app-debug-renamed.apk
-
-      - name: Upload AppBundle
+      - name: Upload AppBundle to Artifact
         uses: actions/upload-artifact@v4
         with:
           name: appbundle
           path: build/app/outputs/bundle/release/app-release.aab
 
-      - name: Upload APKs and AAB to Release
+      - name: Upload AAB to Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: |
-            build/app/outputs/flutter-apk/app-release-renamed.apk
-            build/app/outputs/bundle/release/app-release.aab
+          file: build/app/outputs/bundle/release/app-release.aab
           tag: ${{ needs.tag-version.outputs.tag }}
           overwrite: true
           body: "Release ${{ needs.tag-version.outputs.tag }}"

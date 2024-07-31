@@ -1,4 +1,4 @@
-name: Build and Release Flutter App
+name: Build Flutter App (Android & iOS)
 
 on:
   workflow_dispatch:
